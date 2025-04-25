@@ -6,9 +6,9 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/amzn/node-jose_aws-kms-extension.git"
+    "url": "https://github.com/SukuLab/node-jose_aws-kms-extension.git"
   },
-  "homepage": "https://github.com/amzn/node-jose_aws-kms-extension#readme",
+  "homepage": "https://github.com/SukuLab/node-jose_aws-kms-extension#readme",
   "scripts": {
     "clean": "rm -rf dist && rm -rf node_modules",
     "build": "tsc",
