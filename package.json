@@ -13,7 +13,7 @@
     "clean": "rm -rf dist && rm -rf node_modules",
     "build": "tsc",
     "watch": "tsc -w",
-    "prepublishOnly": "npm run build && npm run test",
+    "prepare": "npm run build",
     "test": "jest --collectCoverage --collectCoverageFrom=src/**/*.{ts,js} && npm run format && npm run fix",
     "lint": "npx eslint --ext .ts src",
     "fix": "npx eslint --ext .ts src --fix",
