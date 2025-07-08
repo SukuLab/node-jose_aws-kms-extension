@@ -1,6 +1,6 @@
 {
   "name": "@aws-crypto/node-jose_aws-kms-extension",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "This library is an extension of node-jose library with AWS KMS support",
   "author": "lynx-tech@amazon.com",
   "license": "Apache-2.0",
@@ -13,7 +13,6 @@
     "clean": "rm -rf dist && rm -rf node_modules",
     "build": "tsc",
     "watch": "tsc -w",
-    "prepare": "npm run build",
     "test": "jest --collectCoverage --collectCoverageFrom=src/**/*.{ts,js} && npm run format && npm run fix",
     "lint": "npx eslint --ext .ts src",
     "fix": "npx eslint --ext .ts src --fix",

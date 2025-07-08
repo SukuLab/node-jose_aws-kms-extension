@@ -1,0 +1,110 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.mapToAwsKmsAlgorithm = exports.processKMSError = exports.digestData = exports.validateKeyFormat = void 0;
+const exceptions_1 = require("./exceptions");
+const client_kms_1 = require("@aws-sdk/client-kms");
+const constants_1 = require("./constants/constants");
+const jose_1 = require("./jose");
+/**
+ * Validates the format of a key.
+ * @param {string} key - The key to validate.
+ * @throws {KMSInvalidKeyFormatError} Throws an error if the provided key format is invalid.
+ */
+function validateKeyFormat(key) {
+    // TODO: update keyFormatPattern
+    const keyFormatPattern = /^\S+$/;
+    if (typeof key !== 'string' || !keyFormatPattern.test(key)) {
+        throw new exceptions_1.KMSInvalidKeyFormatError("Provided key isn't supported by KMS. " +
+            'Expected a string with key-id, key-id ARN, key-alias, or key-alias ARN.');
+    }
+}
+exports.validateKeyFormat = validateKeyFormat;
+/**
+ * Digests data using the specified algorithm.
+ * @param {string} alg - The algorithm to use for digesting the data.
+ * @param {Buffer} data - The data to digest.
+ * @returns {Promise<Buffer>} A promise that resolves to the digested data.
+ * @throws {KMSUnSupportedAlgorithmError} Throws an error if the algorithm is unsupported.
+ */
+function digestData(alg, data) {
+    const digestAlg = constants_1.ALG_DIGEST_MAP.get(alg);
+    if (!digestAlg) {
+        return Promise.reject(new exceptions_1.KMSUnSupportedAlgorithmError(`Unsupported algorithm: ${alg}`));
+    }
+    return jose_1.default.JWA.digest(digestAlg, data);
+}
+exports.digestData = digestData;
+/**
+ * Processes errors from AWS KMS service.
+ *
+ * @param {unknown} error - The error to process
+ * @returns {KMSTransientError|KMSValidationError|KMSError}
+ *
+ * @throws {KMSTransientError}
+ * For transient errors like timeout, unavailable key etc.
+ *
+ * @throws {KMSValidationError}
+ * For invalid requests, signatures etc.
+ *
+ * @throws {KMSError}
+ * For other KMS errors.
+ */
+function processKMSError(error) {
+    if (isKMSTransientError(error)) {
+        return new exceptions_1.KMSTransientError('A temporary exception was thrown from KMS.');
+    }
+    if (isKMSValidationError(error)) {
+        return new exceptions_1.KMSValidationError('A validation exception was thrown from KMS.');
+    }
+    return new exceptions_1.KMSError(error instanceof Error
+        ? error.message
+        : 'An unknown exception was thrown from KMS.');
+}
+exports.processKMSError = processKMSError;
+/**
+ *
+ * @param error
+ * @returns true if the error is a KMS transient error, false otherwise.
+ */
+function isKMSTransientError(error) {
+    if (error instanceof client_kms_1.DependencyTimeoutException ||
+        error instanceof client_kms_1.KeyUnavailableException ||
+        error instanceof client_kms_1.KMSInternalException) {
+        return true;
+    }
+    return false;
+}
+/**
+ *
+ * @param error
+ * @returns true if the error is a KMS validation error, false otherwise.
+ */
+function isKMSValidationError(error) {
+    if (error instanceof client_kms_1.DisabledException ||
+        error instanceof client_kms_1.DryRunOperationException ||
+        error instanceof client_kms_1.IncorrectKeyException ||
+        error instanceof client_kms_1.InvalidGrantTokenException ||
+        error instanceof client_kms_1.InvalidKeyUsageException ||
+        error instanceof client_kms_1.KMSInvalidSignatureException ||
+        error instanceof client_kms_1.KMSInvalidStateException ||
+        error instanceof client_kms_1.NotFoundException) {
+        return true;
+    }
+    return false;
+}
+/**
+ * Maps the standard algorithm to the algorithm used by AWS KMS.
+ * https://datatracker.ietf.org/doc/html/rfc7518#section-4.1
+ *
+ * @param algorithm - The algorithm to map.
+ * @returns The algorithm used by AWS KMS.
+ */
+function mapToAwsKmsAlgorithm(algorithm) {
+    const algorithmMap = {
+        'RSA-OAEP': 'RSAES_OAEP_SHA_1',
+        'RSA-OAEP-256': 'RSAES_OAEP_SHA_256',
+    };
+    return algorithmMap[algorithm] || algorithm;
+}
+exports.mapToAwsKmsAlgorithm = mapToAwsKmsAlgorithm;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidXRpbHMuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvdXRpbHMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsNkNBTXNCO0FBQ3RCLG9EQVk2QjtBQUM3QixxREFBdUQ7QUFDdkQsaUNBQTBCO0FBRTFCOzs7O0dBSUc7QUFDSCxTQUFnQixpQkFBaUIsQ0FBQyxHQUFXO0lBQzNDLGdDQUFnQztJQUNoQyxNQUFNLGdCQUFnQixHQUFHLE9BQU8sQ0FBQztJQUVqQyxJQUFJLE9BQU8sR0FBRyxLQUFLLFFBQVEsSUFBSSxDQUFDLGdCQUFnQixDQUFDLElBQUksQ0FBQyxHQUFHLENBQUMsRUFBRTtRQUMxRCxNQUFNLElBQUkscUNBQXdCLENBQ2hDLHVDQUF1QztZQUNyQyx5RUFBeUUsQ0FDNUUsQ0FBQztLQUNIO0FBQ0gsQ0FBQztBQVZELDhDQVVDO0FBRUQ7Ozs7OztHQU1HO0FBQ0gsU0FBZ0IsVUFBVSxDQUFDLEdBQVcsRUFBRSxJQUFZO0lBQ2xELE1BQU0sU0FBUyxHQUFHLDBCQUFjLENBQUMsR0FBRyxDQUFDLEdBQUcsQ0FBQyxDQUFDO0lBRTFDLElBQUksQ0FBQyxTQUFTLEVBQUU7UUFDZCxPQUFPLE9BQU8sQ0FBQyxNQUFNLENBQ25CLElBQUkseUNBQTRCLENBQUMsMEJBQTBCLEdBQUcsRUFBRSxDQUFDLENBQ2xFLENBQUM7S0FDSDtJQUVELE9BQU8sY0FBSSxDQUFDLEdBQUcsQ0FBQyxNQUFNLENBQUMsU0FBUyxFQUFFLElBQUksQ0FBQyxDQUFDO0FBQzFDLENBQUM7QUFWRCxnQ0FVQztBQUVEOzs7Ozs7Ozs7Ozs7OztHQWNHO0FBQ0gsU0FBZ0IsZUFBZSxDQUM3QixLQUFjO0lBRWQsSUFBSSxtQkFBbUIsQ0FBQyxLQUFLLENBQUMsRUFBRTtRQUM5QixPQUFPLElBQUksOEJBQWlCLENBQUMsNENBQTRDLENBQUMsQ0FBQztLQUM1RTtJQUVELElBQUksb0JBQW9CLENBQUMsS0FBSyxDQUFDLEVBQUU7UUFDL0IsT0FBTyxJQUFJLCtCQUFrQixDQUMzQiw2Q0FBNkMsQ0FDOUMsQ0FBQztLQUNIO0lBRUQsT0FBTyxJQUFJLHFCQUFRLENBQ2pCLEtBQUssWUFBWSxLQUFLO1FBQ3BCLENBQUMsQ0FBQyxLQUFLLENBQUMsT0FBTztRQUNmLENBQUMsQ0FBQywyQ0FBMkMsQ0FDaEQsQ0FBQztBQUNKLENBQUM7QUFsQkQsMENBa0JDO0FBRUQ7Ozs7R0FJRztBQUNILFNBQVMsbUJBQW1CLENBQUMsS0FBYztJQUN6QyxJQUNFLEtBQUssWUFBWSx1Q0FBMEI7UUFDM0MsS0FBSyxZQUFZLG9DQUF1QjtRQUN4QyxLQUFLLFlBQVksaUNBQW9CLEVBQ3JDO1FBQ0EsT0FBTyxJQUFJLENBQUM7S0FDYjtJQUNELE9BQU8sS0FBSyxDQUFDO0FBQ2YsQ0FBQztBQUVEOzs7O0dBSUc7QUFDSCxTQUFTLG9CQUFvQixDQUFDLEtBQWM7SUFDMUMsSUFDRSxLQUFLLFlBQVksOEJBQWlCO1FBQ2xDLEtBQUssWUFBWSxxQ0FBd0I7UUFDekMsS0FBSyxZQUFZLGtDQUFxQjtRQUN0QyxLQUFLLFlBQVksdUNBQTBCO1FBQzNDLEtBQUssWUFBWSxxQ0FBd0I7UUFDekMsS0FBSyxZQUFZLHlDQUE0QjtRQUM3QyxLQUFLLFlBQVkscUNBQXdCO1FBQ3pDLEtBQUssWUFBWSw4QkFBaUIsRUFDbEM7UUFDQSxPQUFPLElBQUksQ0FBQztLQUNiO0lBQ0QsT0FBTyxLQUFLLENBQUM7QUFDZixDQUFDO0FBRUQ7Ozs7OztHQU1HO0FBQ0gsU0FBZ0Isb0JBQW9CLENBQUMsU0FBaUI7SUFDcEQsTUFBTSxZQUFZLEdBQThCO1FBQzlDLFVBQVUsRUFBRSxrQkFBa0I7UUFDOUIsY0FBYyxFQUFFLG9CQUFvQjtLQUNyQyxDQUFDO0lBRUYsT0FBTyxZQUFZLENBQUMsU0FBUyxDQUFDLElBQUksU0FBUyxDQUFDO0FBQzlDLENBQUM7QUFQRCxvREFPQyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7XG4gIEtNU0Vycm9yLFxuICBLTVNJbnZhbGlkS2V5Rm9ybWF0RXJyb3IsXG4gIEtNU1RyYW5zaWVudEVycm9yLFxuICBLTVNVblN1cHBvcnRlZEFsZ29yaXRobUVycm9yLFxuICBLTVNWYWxpZGF0aW9uRXJyb3IsXG59IGZyb20gJy4vZXhjZXB0aW9ucyc7XG5pbXBvcnQge1xuICBEZXBlbmRlbmN5VGltZW91dEV4Y2VwdGlvbixcbiAgS2V5VW5hdmFpbGFibGVFeGNlcHRpb24sXG4gIEtNU0ludGVybmFsRXhjZXB0aW9uLFxuICBEaXNhYmxlZEV4Y2VwdGlvbixcbiAgRHJ5UnVuT3BlcmF0aW9uRXhjZXB0aW9uLFxuICBJbmNvcnJlY3RLZXlFeGNlcHRpb24sXG4gIEludmFsaWRHcmFudFRva2VuRXhjZXB0aW9uLFxuICBJbnZhbGlkS2V5VXNhZ2VFeGNlcHRpb24sXG4gIEtNU0ludmFsaWRTaWduYXR1cmVFeGNlcHRpb24sXG4gIEtNU0ludmFsaWRTdGF0ZUV4Y2VwdGlvbixcbiAgTm90Rm91bmRFeGNlcHRpb24sXG59IGZyb20gJ0Bhd3Mtc2RrL2NsaWVudC1rbXMnO1xuaW1wb3J0IHsgQUxHX0RJR0VTVF9NQVAgfSBmcm9tICcuL2NvbnN0YW50cy9jb25zdGFudHMnO1xuaW1wb3J0IGpvc2UgZnJvbSAnLi9qb3NlJztcblxuLyoqXG4gKiBWYWxpZGF0ZXMgdGhlIGZvcm1hdCBvZiBhIGtleS5cbiAqIEBwYXJhbSB7c3RyaW5nfSBrZXkgLSBUaGUga2V5IHRvIHZhbGlkYXRlLlxuICogQHRocm93cyB7S01TSW52YWxpZEtleUZvcm1hdEVycm9yfSBUaHJvd3MgYW4gZXJyb3IgaWYgdGhlIHByb3ZpZGVkIGtleSBmb3JtYXQgaXMgaW52YWxpZC5cbiAqL1xuZXhwb3J0IGZ1bmN0aW9uIHZhbGlkYXRlS2V5Rm9ybWF0KGtleTogc3RyaW5nKTogdm9pZCB7XG4gIC8vIFRPRE86IHVwZGF0ZSBrZXlGb3JtYXRQYXR0ZXJuXG4gIGNvbnN0IGtleUZvcm1hdFBhdHRlcm4gPSAvXlxcUyskLztcblxuICBpZiAodHlwZW9mIGtleSAhPT0gJ3N0cmluZycgfHwgIWtleUZvcm1hdFBhdHRlcm4udGVzdChrZXkpKSB7XG4gICAgdGhyb3cgbmV3IEtNU0ludmFsaWRLZXlGb3JtYXRFcnJvcihcbiAgICAgIFwiUHJvdmlkZWQga2V5IGlzbid0IHN1cHBvcnRlZCBieSBLTVMuIFwiICtcbiAgICAgICAgJ0V4cGVjdGVkIGEgc3RyaW5nIHdpdGgga2V5LWlkLCBrZXktaWQgQVJOLCBrZXktYWxpYXMsIG9yIGtleS1hbGlhcyBBUk4uJyxcbiAgICApO1xuICB9XG59XG5cbi8qKlxuICogRGlnZXN0cyBkYXRhIHVzaW5nIHRoZSBzcGVjaWZpZWQgYWxnb3JpdGhtLlxuICogQHBhcmFtIHtzdHJpbmd9IGFsZyAtIFRoZSBhbGdvcml0aG0gdG8gdXNlIGZvciBkaWdlc3RpbmcgdGhlIGRhdGEuXG4gKiBAcGFyYW0ge0J1ZmZlcn0gZGF0YSAtIFRoZSBkYXRhIHRvIGRpZ2VzdC5cbiAqIEByZXR1cm5zIHtQcm9taXNlPEJ1ZmZlcj59IEEgcHJvbWlzZSB0aGF0IHJlc29sdmVzIHRvIHRoZSBkaWdlc3RlZCBkYXRhLlxuICogQHRocm93cyB7S01TVW5TdXBwb3J0ZWRBbGdvcml0aG1FcnJvcn0gVGhyb3dzIGFuIGVycm9yIGlmIHRoZSBhbGdvcml0aG0gaXMgdW5zdXBwb3J0ZWQuXG4gKi9cbmV4cG9ydCBmdW5jdGlvbiBkaWdlc3REYXRhKGFsZzogc3RyaW5nLCBkYXRhOiBCdWZmZXIpOiBQcm9taXNlPEJ1ZmZlcj4ge1xuICBjb25zdCBkaWdlc3RBbGcgPSBBTEdfRElHRVNUX01BUC5nZXQoYWxnKTtcblxuICBpZiAoIWRpZ2VzdEFsZykge1xuICAgIHJldHVybiBQcm9taXNlLnJlamVjdChcbiAgICAgIG5ldyBLTVNVblN1cHBvcnRlZEFsZ29yaXRobUVycm9yKGBVbnN1cHBvcnRlZCBhbGdvcml0aG06ICR7YWxnfWApLFxuICAgICk7XG4gIH1cblxuICByZXR1cm4gam9zZS5KV0EuZGlnZXN0KGRpZ2VzdEFsZywgZGF0YSk7XG59XG5cbi8qKlxuICogUHJvY2Vzc2VzIGVycm9ycyBmcm9tIEFXUyBLTVMgc2VydmljZS5cbiAqXG4gKiBAcGFyYW0ge3Vua25vd259IGVycm9yIC0gVGhlIGVycm9yIHRvIHByb2Nlc3NcbiAqIEByZXR1cm5zIHtLTVNUcmFuc2llbnRFcnJvcnxLTVNWYWxpZGF0aW9uRXJyb3J8S01TRXJyb3J9XG4gKlxuICogQHRocm93cyB7S01TVHJhbnNpZW50RXJyb3J9XG4gKiBGb3IgdHJhbnNpZW50IGVycm9ycyBsaWtlIHRpbWVvdXQsIHVuYXZhaWxhYmxlIGtleSBldGMuXG4gKlxuICogQHRocm93cyB7S01TVmFsaWRhdGlvbkVycm9yfVxuICogRm9yIGludmFsaWQgcmVxdWVzdHMsIHNpZ25hdHVyZXMgZXRjLlxuICpcbiAqIEB0aHJvd3Mge0tNU0Vycm9yfVxuICogRm9yIG90aGVyIEtNUyBlcnJvcnMuXG4gKi9cbmV4cG9ydCBmdW5jdGlvbiBwcm9jZXNzS01TRXJyb3IoXG4gIGVycm9yOiB1bmtub3duLFxuKTogS01TVHJhbnNpZW50RXJyb3IgfCBLTVNWYWxpZGF0aW9uRXJyb3IgfCBLTVNFcnJvciB7XG4gIGlmIChpc0tNU1RyYW5zaWVudEVycm9yKGVycm9yKSkge1xuICAgIHJldHVybiBuZXcgS01TVHJhbnNpZW50RXJyb3IoJ0EgdGVtcG9yYXJ5IGV4Y2VwdGlvbiB3YXMgdGhyb3duIGZyb20gS01TLicpO1xuICB9XG5cbiAgaWYgKGlzS01TVmFsaWRhdGlvbkVycm9yKGVycm9yKSkge1xuICAgIHJldHVybiBuZXcgS01TVmFsaWRhdGlvbkVycm9yKFxuICAgICAgJ0EgdmFsaWRhdGlvbiBleGNlcHRpb24gd2FzIHRocm93biBmcm9tIEtNUy4nLFxuICAgICk7XG4gIH1cblxuICByZXR1cm4gbmV3IEtNU0Vycm9yKFxuICAgIGVycm9yIGluc3RhbmNlb2YgRXJyb3JcbiAgICAgID8gZXJyb3IubWVzc2FnZVxuICAgICAgOiAnQW4gdW5rbm93biBleGNlcHRpb24gd2FzIHRocm93biBmcm9tIEtNUy4nLFxuICApO1xufVxuXG4vKipcbiAqXG4gKiBAcGFyYW0gZXJyb3JcbiAqIEByZXR1cm5zIHRydWUgaWYgdGhlIGVycm9yIGlzIGEgS01TIHRyYW5zaWVudCBlcnJvciwgZmFsc2Ugb3RoZXJ3aXNlLlxuICovXG5mdW5jdGlvbiBpc0tNU1RyYW5zaWVudEVycm9yKGVycm9yOiB1bmtub3duKSB7XG4gIGlmIChcbiAgICBlcnJvciBpbnN0YW5jZW9mIERlcGVuZGVuY3lUaW1lb3V0RXhjZXB0aW9uIHx8XG4gICAgZXJyb3IgaW5zdGFuY2VvZiBLZXlVbmF2YWlsYWJsZUV4Y2VwdGlvbiB8fFxuICAgIGVycm9yIGluc3RhbmNlb2YgS01TSW50ZXJuYWxFeGNlcHRpb25cbiAgKSB7XG4gICAgcmV0dXJuIHRydWU7XG4gIH1cbiAgcmV0dXJuIGZhbHNlO1xufVxuXG4vKipcbiAqXG4gKiBAcGFyYW0gZXJyb3JcbiAqIEByZXR1cm5zIHRydWUgaWYgdGhlIGVycm9yIGlzIGEgS01TIHZhbGlkYXRpb24gZXJyb3IsIGZhbHNlIG90aGVyd2lzZS5cbiAqL1xuZnVuY3Rpb24gaXNLTVNWYWxpZGF0aW9uRXJyb3IoZXJyb3I6IHVua25vd24pIHtcbiAgaWYgKFxuICAgIGVycm9yIGluc3RhbmNlb2YgRGlzYWJsZWRFeGNlcHRpb24gfHxcbiAgICBlcnJvciBpbnN0YW5jZW9mIERyeVJ1bk9wZXJhdGlvbkV4Y2VwdGlvbiB8fFxuICAgIGVycm9yIGluc3RhbmNlb2YgSW5jb3JyZWN0S2V5RXhjZXB0aW9uIHx8XG4gICAgZXJyb3IgaW5zdGFuY2VvZiBJbnZhbGlkR3JhbnRUb2tlbkV4Y2VwdGlvbiB8fFxuICAgIGVycm9yIGluc3RhbmNlb2YgSW52YWxpZEtleVVzYWdlRXhjZXB0aW9uIHx8XG4gICAgZXJyb3IgaW5zdGFuY2VvZiBLTVNJbnZhbGlkU2lnbmF0dXJlRXhjZXB0aW9uIHx8XG4gICAgZXJyb3IgaW5zdGFuY2VvZiBLTVNJbnZhbGlkU3RhdGVFeGNlcHRpb24gfHxcbiAgICBlcnJvciBpbnN0YW5jZW9mIE5vdEZvdW5kRXhjZXB0aW9uXG4gICkge1xuICAgIHJldHVybiB0cnVlO1xuICB9XG4gIHJldHVybiBmYWxzZTtcbn1cblxuLyoqXG4gKiBNYXBzIHRoZSBzdGFuZGFyZCBhbGdvcml0aG0gdG8gdGhlIGFsZ29yaXRobSB1c2VkIGJ5IEFXUyBLTVMuXG4gKiBodHRwczovL2RhdGF0cmFja2VyLmlldGYub3JnL2RvYy9odG1sL3JmYzc1MTgjc2VjdGlvbi00LjFcbiAqXG4gKiBAcGFyYW0gYWxnb3JpdGhtIC0gVGhlIGFsZ29yaXRobSB0byBtYXAuXG4gKiBAcmV0dXJucyBUaGUgYWxnb3JpdGhtIHVzZWQgYnkgQVdTIEtNUy5cbiAqL1xuZXhwb3J0IGZ1bmN0aW9uIG1hcFRvQXdzS21zQWxnb3JpdGhtKGFsZ29yaXRobTogc3RyaW5nKTogc3RyaW5nIHtcbiAgY29uc3QgYWxnb3JpdGhtTWFwOiB7IFtrZXk6IHN0cmluZ106IHN0cmluZyB9ID0ge1xuICAgICdSU0EtT0FFUCc6ICdSU0FFU19PQUVQX1NIQV8xJyxcbiAgICAnUlNBLU9BRVAtMjU2JzogJ1JTQUVTX09BRVBfU0hBXzI1NicsXG4gIH07XG5cbiAgcmV0dXJuIGFsZ29yaXRobU1hcFthbGdvcml0aG1dIHx8IGFsZ29yaXRobTtcbn1cbiJdfQ==
